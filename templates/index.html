@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <!-- Required meta tags -->
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+        <!-- Bootstrap CSS -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css"
+            crossorigin="anonymous">
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.min.js" crossorigin="anonymous"></script>
+
+
+			  <!-- JS -->
+        <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+
+        <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"
+            crossorigin="anonymous"></script>
+
+        <!-- 구글폰트 -->
+        <link href="https://fonts.googleapis.com/css?family=Stylish&display=swap" rel="stylesheet">
+
+    <title>크래프톤 정글 | 나홀로 메모장</title>
+
+    <style>
+        * { font-family: "Stylish", sans-serif; }
+        .wrap { width: 900px; margin: auto; }
+        .comment { color: blue; font-weight: bold; }
+        #post-box {
+            width: 500px;
+            margin: 20px auto;
+            padding: 50px;
+            border: black solid;
+            border-radius: 5px;
+        }
+    </style>
+
+    <script>
+    const SERVER_URL = "http://124.49.102.176:80";
+
+    let cards = [];
+
+    $(document).ready(function () {
+        reloading_card();
+    });
+
+    function reloading_card() {
+        $.ajax({
+            type: "GET",
+            url: `${SERVER_URL}/list/memos`,
+            success: function (response) {
+                cards = response;
+                renderCards();
+            }
+        });
+    }
+
+    function postArticle() {
+        const title = $("#memo-title").val();
+        const content = $("#memo-content").val();
+
+        const card = {
+            id: Date.now(),
+            title: title,
+            content: content
+        };
+
+        $.ajax({
+            type: "POST",
+            url: `${SERVER_URL}/upload/memos`,
+            contentType: "application/json",
+            data: JSON.stringify(card),
+            success: function () {
+                $("#memo-title").val('');
+                $("#memo-content").val('');
+                reloading_card();
+            }
+        });
+    }
+
+    function likeCard(id) {
+        $.ajax({
+            type: "POST",
+            url: `${SERVER_URL}/memos/${id}/like`,
+            success: function () {
+                reloading_card();
+            }
+        });
+    }
+
+    function deleteCard(id) {
+        console.log(id)
+        $.ajax({
+            type: "POST",
+            url: `${SERVER_URL}/memos/del/${id}`,
+            success: function () {
+                reloading_card();
+            }}
+        );
+    }
+
+    function saveEdit(id) {
+        const newTitle = $(`.card[data-id="${id}"] .new-title`).val();
+        const newText = $(`.card[data-id="${id}"] .new-text`).val();
+
+        $.ajax({
+            type: "POST",
+            url: `${SERVER_URL}/memos/edit/${id}`,
+            contentType: "application/json",
+            data: JSON.stringify({ title: newTitle, content: newText }),
+
+            success: function () {
+                reloading_card();
+            }
+        });
+    }
+
+    function renderCards() {
+    cards.sort((a, b) => b.likes - a.likes);
+    $("#card-list").empty();
+
+    for (let card of cards) {
+        const cardHtml = `
+        <div class="card" data-id="${card.id}">
+            <div class="card-body">
+                <h5 class="card-title">${card.title}</h5>
+                <p class="card-text">${card.content}</p>
+                <p class="card-likes">${card.likes}</p>
+                <button class="edit-button" onclick="editCard('${card.id}')">수정</button>
+                <button class="delete-button" onclick="deleteCard('${card.id}')">삭제</button>
+                <button class="link-like" onclick="likeCard('${card.id}')">좋아요</button>
+            </div>
+        </div>`;
+        $("#card-list").append(cardHtml);
+    }
+}
+
+    function editCard(id) {
+        const card = cards.find(c => c.id === id);
+        if (!card) return;
+
+        const editHtml = `
+            <input class="new-title" value="${card.title}">
+            <textarea class="new-text" rows="2">${card.content}</textarea>
+            <button class="save-button" onclick="saveEdit('${card.id}')">저장</button>
+        `;
+
+        $(`.card[data-id="${id}"] .card-body`).html(editHtml);
+    }
+
+
+</script>
+
+</head>
+
+<body>
+    <div class="wrap">
+        <div class="jumbotron">
+            <h1 class="display-4">나홀로 링크 메모장 ver2</h1>
+            <p class="lead">중요한 링크를 저장해두고, 나중에 볼 수 있는 공간입니다</p>
+            <hr class="my-4">
+            <div class="form-group">
+                <input id="memo-title" class="form-control" placeholder="제목을 입력하세요">
+            </div>
+            <div class="form-group">
+                <textarea id="memo-content" class="form-control" rows="2" placeholder="내용을 입력하세요"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary" onclick="postArticle()">저장하기</button>
+        </div>
+
+        <div id="card-list" class="card-columns">
+            <!-- 카드 목록이 여기에 표시됩니다 -->
+        </div>
+    </div>
+</body>
+</html>
